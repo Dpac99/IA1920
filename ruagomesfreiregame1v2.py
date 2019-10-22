@@ -87,6 +87,7 @@ else:
 
 print("\n(4 val) Exercise 2 - One agent, Limits")
 print("Init [30] Goal [56]")
+print("60: ", U[60])
 SP = SearchProblem(goal = [56], model = U, auxheur=coords)
 tinit = time.process_time()
 I = [30]
