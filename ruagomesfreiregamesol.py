@@ -32,24 +32,28 @@ class SearchProblem:
         self.edges = model
         self.vertixesPos = auxheur
         self.openList = []
-        # self.closedList = []
         self.final = []
         self.paths = []
         self.reached = []
+        self.dist = []
+        for i in goal:
+            self.dist.append(self.BFS(i))
 
     def search(self, init, limitexp=2000, limitdepth=10, tickets=[math.inf, math.inf, math.inf]):
 
-        r = len(init)
+        r = len(init)  # 3
         for i in range(r):
             self.agentPos.append([])
             self.openList.append([])
-            # self.closedList.append([])
             self.paths.append([])
             self.reached.append(False)
 
         self.aStar(init, tickets)
 
-        l = len(self.paths[0])
+        l = len(self.paths[0])  # path size
+
+        for i in range(r):
+            print(self.paths[i])
 
         for i in range(l):
             self.final.append([[], []])
@@ -63,14 +67,25 @@ class SearchProblem:
 
         for i, p in enumerate(init):
             node = Node(p, None, self.vertixesPos[p-1], 0, tickets)
-            # self.openList[i].append(node)
             self.agentPos[i] = node
+            self.openList[i].append(node)
 
         while tickets[0] + tickets[1] + tickets[2] > 0 and not self.checkGoals():
+            print()
             for agent, p in enumerate(self.agentPos):
-                # print()
+
+                index = self.getLowerF(
+                    self.openList[agent], self.reached[agent])
+                # print("Agent", agent, "moving from", node.n, "to",
+                #      self.openList[agent][index].n)
+
+                self.agentPos[agent] = self.openList[agent].pop(index)
+
+                if p.parent is not None:
+                    print("Agent", agent, "in position",
+                          p.n, "from", p.parent.n)
+
                 node = self.agentPos[agent]
-                # self.closedList[agent].append(node)
 
                 preChildren = []
 
@@ -91,25 +106,16 @@ class SearchProblem:
                     preChildren.append(new_node)
 
                 for child in preChildren:
-                    # for closed in self.closedList[agent]:
-                    #   if child == closed:
-                    #      continue
 
                     child.g = node.g + 1
-                    child.h = (((child.position[0] - self.goal[agent].position[0]) **
-                                2) + ((child.position[1] - self.goal[agent].position[1]) ** 2)) / ((child.transport + 1) ** 2)
-                    child.f = child.g + child.h
-                    # print("Agent:", agent, "parent:", node.n, "child:", child.n, "h:",
-                    # child.h, "transport:", child.transport, "tickets:", child.tickets, "cond:", cond)
+                    child.f = self.dist[agent][child.n] + child.g
+                #    print("Agent:", agent, "parent:", child.parent.n, "child:", child.n, "cost:", child.f,
+                #          "transport:", child.transport, "tickets:", child.tickets, "cond:", cond)
 
                     for o in self.openList[agent]:
                         if child == o and child.g > o.g:
                             continue
                     self.openList[agent].append(child)
-                index = self.getLowerF(self.openList[agent])
-                # print("Agent", agent, "moving from", node.n, "to",
-                # self.openList[agent][index].n)
-                self.agentPos[agent] = self.openList[agent].pop(index)
 
         if self.checkGoals():
             for i, p in enumerate(self.agentPos):
@@ -119,11 +125,19 @@ class SearchProblem:
                     current = current.parent
                 self.paths[i] = self.paths[i][::-1]
 
-    def getLowerF(self, olist):
-        current_i = 0
+    def getLowerF(self, olist, flag):
+        current_i = -1
         l = len(olist)
+        for i, p in enumerate(olist):
+            if p not in self.agentPos:
+                current_i = i
+                break
         for i in range(l):
-            if olist[i].f < olist[current_i].f:
+            if flag:
+                if olist[i].f == 1 and olist[i] not in self.agentPos:
+                    return i
+
+            if olist[i].f < olist[current_i].f and olist[i] not in self.agentPos:
                 current_i = i
 
         return current_i
@@ -131,11 +145,29 @@ class SearchProblem:
     def checkGoals(self):
         flag = True
         for i, p in enumerate(self.agentPos):
-            # print("Comparing", [p.n, p.position], "to", [
-                  # self.goal[i].n, self.goal[i].position])
             if p != self.goal[i]:
                 flag = False
                 self.reached[i] = False
             else:
                 self.reached[i] = True
         return flag
+
+    def BFS(self, s):
+
+        visited = [-1] * (len(self.edges) + 1)
+
+        queue = []
+
+        queue.append(s)
+        visited[s] = 0
+
+        while queue:
+
+            s = queue.pop(0)
+
+            for i in self.edges[s]:
+                if visited[i[1]] == -1:
+                    queue.append(i[1])
+                    visited[i[1]] = visited[s] + 1
+
+        return visited
