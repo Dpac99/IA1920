@@ -1,13 +1,13 @@
 import math
 import pickle
 import time
+import itertools
 
 
 class Node:
 
-    def __init__(self, n, parent=None, position=None, transport=None, tickets=None):
+    def __init__(self, n, parent=None, transport=None, tickets=None):
         self.parent = parent
-        self.position = position
         self.n = n
 
         self.g = 0
@@ -19,7 +19,7 @@ class Node:
         self.tickets = list(tickets)
 
     def __eq__(self, other):
-        return self.position == other.position and self.n == other.n
+        return self.n == other.n
 
 
 class SearchProblem:
@@ -27,33 +27,43 @@ class SearchProblem:
     def __init__(self, goal, model, auxheur=[]):
         self.goal = []
         for i in goal:
-            self.goal.append(Node(i, None, auxheur[i-1], None, []))
-        self.agentPos = []
+            self.goal.append(Node(i, None, None, []))
         self.edges = model
         self.vertixesPos = auxheur
-        self.openList = []
-        self.final = []
         self.paths = []
-        self.reached = []
+        self.final = []
+        self.agentPos = []
+        self.combinationList = []
         self.dist = []
         for i in goal:
             self.dist.append(self.BFS(i))
+        self.limits = False
 
-    def search(self, init, limitexp=2000, limitdepth=10, tickets=[math.inf, math.inf, math.inf]):
+    def search(self, init, limitexp=2000, limitdepth=10, tickets=[math.inf, math.inf, math.inf], anyorder=False):
+
+        self.limitexp = limitexp
+        self.limitdepth = limitdepth
 
         r = len(init)  # 3
         for i in range(r):
-            self.agentPos.append([])
-            self.openList.append([])
             self.paths.append([])
-            self.reached.append(False)
+
+        if anyorder == True:
+            newGoals = list(self.switchGoals(init))
+            prevGoals = list(self.goal)
+            prevDist = list(self.dist)
+            self.goal = []
+            self.dist = []
+            for index in newGoals:
+                self.goal.append(prevGoals[index])
+                self.dist.append(prevDist[index])
+
+        if tickets != [math.inf, math.inf, math.inf]:
+            self.limits = True
 
         self.aStar(init, tickets)
 
         l = len(self.paths[0])  # path size
-
-        for i in range(r):
-            print(self.paths[i])
 
         for i in range(l):
             self.final.append([[], []])
@@ -63,59 +73,67 @@ class SearchProblem:
 
         return self.final
 
+    def switchGoals(self, init):
+        l = list(itertools.permutations([0, 1, 2]))
+
+        min_maxD = math.inf
+        min_i = 0
+        for index, perm in enumerate(l):
+            local_max = 0
+            for init_i, goal in enumerate(perm):
+                d = self.dist[goal][init[init_i]]
+                if d > local_max:
+                    local_max = d
+            if local_max < min_maxD:
+                min_maxD = local_max
+                min_i = index
+
+        return list(l[min_i])
+
     def aStar(self, init, tickets):
+        for i in init:
+            node = Node(i, None, 0, tickets)
+            self.agentPos.append(node)
 
-        for i, p in enumerate(init):
-            node = Node(p, None, self.vertixesPos[p-1], 0, tickets)
-            self.agentPos[i] = node
-            self.openList[i].append(node)
+        while True:
 
-        while tickets[0] + tickets[1] + tickets[2] > 0 and not self.checkGoals():
-            print()
-            for agent, p in enumerate(self.agentPos):
+            maxg = 0
+            for i in self.agentPos:
+                if i.g > maxg:
+                    maxg = i.g
+            if maxg > self.limitdepth:
+                break
 
-                index = self.getLowerF(
-                    self.openList[agent], self.reached[agent])
-                # print("Agent", agent, "moving from", node.n, "to",
-                #      self.openList[agent][index].n)
+            posList = []
+            for index, parent in enumerate(self.agentPos):
+                nodeList = []
+                self.limitexp -= 1
+                for edge in self.edges[parent.n]:
+                    node = Node(edge[1], parent, edge[0], list(parent.tickets))
+                    node.g = parent.g + 1
+                    node.f = self.dist[index][node.n] + node.g
+                    nodeList.append(node)
+                posList.append(nodeList)
 
-                self.agentPos[agent] = self.openList[agent].pop(index)
+            preFilter = itertools.product(*posList)
 
-                if p.parent is not None:
-                    print("Agent", agent, "in position",
-                          p.n, "from", p.parent.n)
+            self.combinationList += self.filterList(preFilter)
 
-                node = self.agentPos[agent]
+            index = self.getLowerF(self.combinationList)
 
-                preChildren = []
+            move = self.combinationList.pop(index)
+            if self.limits:
+                used_tickets = [0, 0, 0]
+                for i in move:
+                    used_tickets[i.transport] += 1
+                for i in move:
+                    i.tickets[0] -= used_tickets[0]
+                    i.tickets[1] -= used_tickets[1]
+                    i.tickets[2] -= used_tickets[2]
 
-                l = len(self.edges[node.n])
-
-                for i in range(l):
-                    child_n = self.edges[node.n][i][1]
-                    child_t = self.edges[node.n][i][0]
-                    cond = 0 if not self.reached[agent] else 1
-                    if node.tickets[child_t] == cond:
-                        continue
-                    child_tickets = list(node.tickets)
-                    child_tickets[child_t] -= 1
-                    new_node = Node(child_n, node,
-                                    self.vertixesPos[child_n-1], child_t, child_tickets)
-                    if new_node in self.agentPos:
-                        continue
-                    preChildren.append(new_node)
-
-                for child in preChildren:
-
-                    child.g = node.g + 1
-                    child.f = self.dist[agent][child.n] + child.g
-                #    print("Agent:", agent, "parent:", child.parent.n, "child:", child.n, "cost:", child.f,
-                #          "transport:", child.transport, "tickets:", child.tickets, "cond:", cond)
-
-                    for o in self.openList[agent]:
-                        if child == o and child.g > o.g:
-                            continue
-                    self.openList[agent].append(child)
+            self.agentPos = list(move)
+            if len(self.combinationList) == 0 or self.checkGoals() or self.limitexp < 0:
+                break
 
         if self.checkGoals():
             for i, p in enumerate(self.agentPos):
@@ -125,32 +143,48 @@ class SearchProblem:
                     current = current.parent
                 self.paths[i] = self.paths[i][::-1]
 
-    def getLowerF(self, olist, flag):
-        current_i = -1
-        l = len(olist)
-        for i, p in enumerate(olist):
-            if p not in self.agentPos:
-                current_i = i
-                break
-        for i in range(l):
-            if flag:
-                if olist[i].f == 1 and olist[i] not in self.agentPos:
-                    return i
+    # Returns a new list only with moves that don't overlap agents and don't overuse tickets
+    def filterList(self, l):
 
-            if olist[i].f < olist[current_i].f and olist[i] not in self.agentPos:
-                current_i = i
+        result = []
 
-        return current_i
+        for move in l:
+            new_move = []
+            if self.limits:
+                ticketsAux = []
+                used_tickets = [0, 0, 0]
+            for index, node in enumerate(move):
+                if self.limits:
+                    ticketsAux = node.tickets
+                    used_tickets[node.transport] += 1
+                if node not in (move[:index] + move[index + 1:]):
+                    new_move.append(node)
+            if len(new_move) == len(move) and (not self.limits or (ticketsAux[0] >= used_tickets[0] and ticketsAux[1] >= used_tickets[1] and ticketsAux[2] >= used_tickets[2])):
+                if self.limits:
+                    for i in new_move:
+                        i.tickets = list(ticketsAux)
+                result.append(new_move)
+
+        return result
+
+    def getLowerF(self, olist):
+        final_i = 0
+        minF = math.inf
+        for index, move in enumerate(olist):
+            move_maxF = 0
+            for node in move:
+                if node.f > move_maxF:
+                    move_maxF = node.f
+            if move_maxF < minF:
+                minF = move_maxF
+                final_i = index
+        return final_i
 
     def checkGoals(self):
-        flag = True
-        for i, p in enumerate(self.agentPos):
-            if p != self.goal[i]:
-                flag = False
-                self.reached[i] = False
-            else:
-                self.reached[i] = True
-        return flag
+        for i, a in enumerate(self.agentPos):
+            if a != self.goal[i]:
+                return False
+        return True
 
     def BFS(self, s):
 
