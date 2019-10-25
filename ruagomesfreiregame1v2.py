@@ -1,6 +1,6 @@
 import pickle
 import copy
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import time
 from ruagomesfreiregamesol import SearchProblem
 
