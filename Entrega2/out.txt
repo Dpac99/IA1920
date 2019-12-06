@@ -1,0 +1,54 @@
+exemplo 1
+# learning phase
+# testing phase
+average reward 0.4
+# 2nd learning phase
+# testing phase
+average reward 0.4
+# learning phase
+# testing phase
+average reward 0.4
+# 2nd learning phase
+# testing phase
+average reward 0.4
+# learning phase
+# testing phase
+average reward 0.4
+# 2nd learning phase
+# testing phase
+average reward 0.4
+# learning phase
+# testing phase
+average reward 0.4
+# 2nd learning phase
+# testing phase
+average reward 0.4
+# learning phase
+# testing phase
+average reward 0.4
+# 2nd learning phase
+# testing phase
+average reward 0.4
+exemplo 2
+# learning phase
+# testing phase
+average reward -0.5
+# 2nd learning phase
+# testing phase
+average reward -0.5
+# learning phase
+# testing phase
+average reward -0.5
+# 2nd learning phase
+# testing phase
+average reward -0.5
+# learning phase
+# testing phase
+average reward -0.5
+# 2nd learning phase
+# testing phase
+average reward -0.5
+# learning phase
+# testing phase
+average reward -0.5
+# 2nd learning phase
